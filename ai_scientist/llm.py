@@ -59,6 +59,7 @@ AVAILABLE_LLMS = [
     "gemini-2.0-flash-thinking-exp-01-21",
     "gemini-2.5-pro-preview-03-25",
     "gemini-2.5-pro-exp-03-25",
+    "google/gemini-2.5-flash-preview-05-20"
 ]
 
 
@@ -344,8 +345,10 @@ def create_client(model):
     elif "gemini" in model:
         print(f"Using OpenAI API with {model}.")
         return openai.OpenAI(
-            api_key=os.environ["GEMINI_API_KEY"],
-            base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
+            # api_key=os.environ["GEMINI_API_KEY"],
+            # base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
+            api_key=os.environ["OPENROUTER_API_KEY"],
+            base_url="https://openrouter.ai/api/v1"
         ), model
     else:
         raise ValueError(f"Model {model} not supported.")

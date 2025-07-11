@@ -127,10 +127,12 @@ def perform_experiments(idea, folder_name, coder, baseline_results) -> bool:
         if current_iter >= MAX_ITERS:
             print("Max iterations reached")
             break
+        # aider通过next_prompt指令去修改代码
         coder_out = coder.run(next_prompt)
         print(coder_out)
         if "ALL_COMPLETED" in coder_out:
             break
+        # 运行一下，看看会有什么结果，如果报错了会提供报错信息，如果成功了会做实验并跑出实验结果
         return_code, next_prompt = run_experiment(folder_name, run)
         if return_code == 0:
             run += 1
@@ -142,7 +144,7 @@ def perform_experiments(idea, folder_name, coder, baseline_results) -> bool:
 
     current_iter = 0
     next_prompt = """
-Great job! Please modify `plot.py` to generate the most relevant plots for the final writeup. 
+Great job! Please modify `plot.py` to generate the most relevant plots for the final writeup.
 
 In particular, be sure to fill in the "labels" dictionary with the correct names for each run that you want to plot.
 

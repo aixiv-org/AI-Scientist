@@ -51,6 +51,55 @@ This JSON will be automatically parsed, so ensure the format is precise.
 You will have {num_reflections} rounds to iterate on the idea, but do not need to use them all.
 """
 
+idea_first_with_lit_review_and_convert_to_proposal_prompt = """{task_description}
+<experiment.py>
+{code}
+</experiment.py>
+
+Here are the ideas that you have already generated:
+
+'''
+{prev_ideas_string}
+'''
+
+Here are the lit review results:
+
+'''
+{lit_review_results}
+'''
+
+Come up with the next impactful and creative idea for research experiments and directions you can feasibly investigate with the code provided.
+Note that you will not have access to any additional resources or datasets.
+Make sure any idea is not overfit the specific training dataset or model, and has wider significance.
+
+Respond in the following format:
+
+THOUGHT:
+<THOUGHT>
+
+NEW IDEA JSON:
+```json
+<JSON>
+```
+
+In <THOUGHT>, first briefly discuss your intuitions and motivations for the idea. Detail your high-level plan, necessary design choices and ideal outcomes of the experiments. Justify how the idea is different from the existing ones.
+
+In <JSON>, provide the new idea in JSON format with the following fields:
+- "Name": A shortened descriptor of the idea. Lowercase, no spaces, underscores allowed.
+- "Title": A title for the idea, will be used for the report writing.
+- "Problem Statement": A clear and concise description of the problem you are trying to solve.
+- "Motivation": A clear and concise description of the motivation behind the problem.
+- "Proposed Method": A clear and concise description of the proposed method to solve the problem.
+- "Experiment": An outline of the implementation. E.g. which functions need to be added or modified, how results will be obtained, ...
+- "Interestingness": A rating from 1 to 10 (lowest to highest).
+- "Feasibility": A rating from 1 to 10 (lowest to highest).
+- "Novelty": A rating from 1 to 10 (lowest to highest).
+
+Be cautious and realistic on your ratings.
+This JSON will be automatically parsed, so ensure the format is precise.
+You will have {num_reflections} rounds to iterate on the idea, but do not need to use them all.
+"""
+
 idea_reflection_prompt = """Round {current_round}/{num_reflections}.
 In your thoughts, first carefully consider the quality, novelty, and feasibility of the idea you just created.
 Include any other factors that you think are important in evaluating the idea.
@@ -71,7 +120,6 @@ NEW IDEA JSON:
 If there is nothing to improve, simply repeat the previous JSON EXACTLY after the thought and include "I am done" at the end of the thoughts but before the JSON.
 ONLY INCLUDE "I am done" IF YOU ARE MAKING NO MORE CHANGES."""
 
-
 # GENERATE IDEAS
 def generate_ideas(
         base_dir,
@@ -80,6 +128,8 @@ def generate_ideas(
         skip_generation=False,
         max_num_generations=20,
         num_reflections=5,
+        use_literature=True,
+        lit_review_size=5,
 ):
     if skip_generation:
         # Load existing ideas from file
@@ -96,6 +146,7 @@ def generate_ideas(
             print("Error decoding existing ideas. Generating new ideas.")
 
     idea_str_archive = []
+    new_idea_str_archive = []
     with open(osp.join(base_dir, "seed_ideas.json"), "r") as f:
         seed_ideas = json.load(f)
     for seed_idea in seed_ideas:
@@ -117,18 +168,44 @@ def generate_ideas(
 
             msg_history = []
             print(f"Iteration 1/{num_reflections}")
-            text, msg_history = get_response_from_llm(
-                idea_first_prompt.format(
-                    task_description=prompt["task_description"],
-                    code=code,
-                    prev_ideas_string=prev_ideas_string,
-                    num_reflections=num_reflections,
-                ),
-                client=client,
-                model=model,
-                system_message=idea_system_prompt,
-                msg_history=msg_history,
-            )
+            if not use_literature:
+                text, msg_history = get_response_from_llm(
+                    idea_first_prompt.format(
+                        task_description=prompt["task_description"],
+                        code=code,
+                        prev_ideas_string=prev_ideas_string,
+                        num_reflections=num_reflections,
+                    ),
+                    client=client,
+                    model=model,
+                    system_message=idea_system_prompt,
+                    msg_history=msg_history,
+                )
+            else:
+                import sys
+                sys.path.append("AI-Researcher/ai_researcher/src")
+                from lit_review import collect_papers
+                from lit_review_tools import format_papers_for_printing
+                paper_bank, total_cost, all_queries = collect_papers(
+                    topic_description=prompt["task_description"],
+                    client=client,
+                    model=model,
+                )
+                print(f"literature view done! paper_bank size:{len(paper_bank)}, total cost: {total_cost}, all queries: {all_queries}")
+                lit_review_results = format_papers_for_printing(paper_bank[:lit_review_size])
+                text, msg_history = get_response_from_llm(
+                    idea_first_with_lit_review_and_convert_to_proposal_prompt.format(
+                        task_description=prompt["task_description"],
+                        code=code,
+                        prev_ideas_string=prev_ideas_string,
+                        num_reflections=num_reflections,
+                        lit_review_results=lit_review_results,
+                    ),
+                    client=client,
+                    model=model,
+                    system_message=idea_system_prompt,
+                    msg_history=msg_history,
+                )
             ## PARSE OUTPUT
             json_output = extract_json_between_markers(text)
             assert json_output is not None, "Failed to extract JSON from LLM output"
@@ -159,6 +236,7 @@ def generate_ideas(
                         break
 
             idea_str_archive.append(json.dumps(json_output))
+            new_idea_str_archive.append(json.dumps(json_output))
         except Exception as e:
             print(f"Failed to generate idea: {e}")
             continue
@@ -170,6 +248,12 @@ def generate_ideas(
 
     with open(osp.join(base_dir, "ideas.json"), "w") as f:
         json.dump(ideas, f, indent=4)
+
+    new_ideas = []
+    for idea_str in new_idea_str_archive:
+        new_ideas.append(json.loads(idea_str))
+    with open(osp.join(base_dir, "new_ideas.json"), "w") as f:
+        json.dump(new_ideas, f, indent=4)
 
     return ideas
 

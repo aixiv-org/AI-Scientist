@@ -239,7 +239,7 @@ This section provides instructions for setting up each of the three templates us
 ```bash
 conda activate ai_scientist
 # Run the paper generation.
-python launch_scientist.py --model "google/gemini-2.5-flash-preview-05-20" --experiment nanoGPT_lite --num-ideas 2
+python launch_scientist.py --model "google/gemini-2.5-flash-preview-05-20" --experiment nanoGPT --num-ideas 2
 python launch_scientist.py --model "gpt-4o-2024-05-13" --experiment nanoGPT_lite --num-ideas 2
 python launch_scientist.py --model "claude-3-5-sonnet-20241022" --experiment nanoGPT_lite --num-ideas 2
 ```

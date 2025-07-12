@@ -29,6 +29,12 @@ def print_time():
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Run AI scientist experiments")
     parser.add_argument(
+        "--skip-run-experiment",
+        action="store_true",
+        help="Skip experiment",
+    )
+
+    parser.add_argument(
         "--skip-idea-generation",
         action="store_true",
         help="Skip idea generation and load existing ideas",
@@ -385,58 +391,59 @@ if __name__ == "__main__":
     novel_ideas = [idea for idea in ideas if idea["novel"]]
     # novel_ideas = list(reversed(novel_ideas))
 
-    if args.parallel > 0:
-        print(f"Running {args.parallel} parallel processes")
-        queue = multiprocessing.Queue()
-        for idea in novel_ideas:
-            queue.put(idea)
+    if not args.skip_run_experiment:
+        if args.parallel > 0:
+            print(f"Running {args.parallel} parallel processes")
+            queue = multiprocessing.Queue()
+            for idea in novel_ideas:
+                queue.put(idea)
 
-        processes = []
-        for i in range(args.parallel):
-            gpu_id = available_gpus[i % len(available_gpus)]
-            p = multiprocessing.Process(
-                target=worker,
-                args=(
-                    queue,
-                    base_dir,
-                    results_dir,
-                    args.model,
-                    client,
-                    client_model,
-                    args.writeup,
-                    args.improvement,
-                    gpu_id,
-                ),
-            )
-            p.start()
-            time.sleep(150)
-            processes.append(p)
-
-        # Signal workers to exit
-        for _ in range(args.parallel):
-            queue.put(None)
-
-        for p in processes:
-            p.join()
-
-        print("All parallel processes completed.")
-    else:
-        for idea in novel_ideas:
-            print(f"Processing idea: {idea['Name']}")
-            try:
-                success = do_idea(
-                    base_dir,
-                    results_dir,
-                    idea,
-                    args.model,
-                    client,
-                    client_model,
-                    args.writeup,
-                    args.improvement,
+            processes = []
+            for i in range(args.parallel):
+                gpu_id = available_gpus[i % len(available_gpus)]
+                p = multiprocessing.Process(
+                    target=worker,
+                    args=(
+                        queue,
+                        base_dir,
+                        results_dir,
+                        args.model,
+                        client,
+                        client_model,
+                        args.writeup,
+                        args.improvement,
+                        gpu_id,
+                    ),
                 )
-                print(f"Completed idea: {idea['Name']}, Success: {success}")
-            except Exception as e:
-                print(f"Failed to evaluate idea {idea['Name']}: {str(e)}")
-                import traceback
-                print(traceback.format_exc())
+                p.start()
+                time.sleep(150)
+                processes.append(p)
+
+            # Signal workers to exit
+            for _ in range(args.parallel):
+                queue.put(None)
+
+            for p in processes:
+                p.join()
+
+            print("All parallel processes completed.")
+        else:
+            for idea in novel_ideas:
+                print(f"Processing idea: {idea['Name']}")
+                try:
+                    success = do_idea(
+                        base_dir,
+                        results_dir,
+                        idea,
+                        args.model,
+                        client,
+                        client_model,
+                        args.writeup,
+                        args.improvement,
+                    )
+                    print(f"Completed idea: {idea['Name']}, Success: {success}")
+                except Exception as e:
+                    print(f"Failed to evaluate idea {idea['Name']}: {str(e)}")
+                    import traceback
+                    print(traceback.format_exc())
     print("All ideas evaluated.")

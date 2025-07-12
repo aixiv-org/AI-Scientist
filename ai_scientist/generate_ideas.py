@@ -62,7 +62,7 @@ Here are the ideas that you have already generated:
 {prev_ideas_string}
 '''
 
-Here are the lit review results:
+Here are the lit review results(NOT TO COPY THE IDEA FROM LIT REVIEW):
 
 '''
 {lit_review_results}
@@ -272,8 +272,8 @@ def generate_ideas(
     new_ideas = []
     for idea_str in new_idea_str_archive:
         new_ideas.append(json.loads(idea_str))
-    # with open(osp.join(base_dir, "new_ideas.json"), "w") as f:
-        # json.dump(new_ideas, f, indent=4)
+    with open(osp.join(base_dir, "new_ideas.json"), "w") as f:
+        json.dump(new_ideas, f, indent=4)
 
     # return ideas
     return new_ideas
@@ -594,9 +594,9 @@ def check_idea_novelty(
         idea["novel"] = novel
 
     # Save results to JSON file
-    # results_file = osp.join(base_dir, "ideas.json")
-    # with open(results_file, "w") as f:
-        # json.dump(ideas, f, indent=4)
+    results_file = osp.join(base_dir, "new_ideas.json")
+    with open(results_file, "w") as f:
+        json.dump(ideas, f, indent=4)
 
     return ideas
 

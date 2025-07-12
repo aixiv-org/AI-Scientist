@@ -130,6 +130,8 @@ def generate_ideas(
         num_reflections=5,
         use_literature=True,
         lit_review_size=5,
+        use_semantic_index=False,
+        use_nova_index=True
 ):
     if skip_generation:
         # Load existing ideas from file
@@ -168,6 +170,7 @@ def generate_ideas(
 
             msg_history = []
             print(f"Iteration 1/{num_reflections}")
+            lit_review_results = None
             if not use_literature:
                 text, msg_history = get_response_from_llm(
                     idea_first_prompt.format(
@@ -182,17 +185,33 @@ def generate_ideas(
                     msg_history=msg_history,
                 )
             else:
-                import sys
-                sys.path.append("AI-Researcher/ai_researcher/src")
-                from lit_review import collect_papers
-                from lit_review_tools import format_papers_for_printing
-                paper_bank, total_cost, all_queries = collect_papers(
-                    topic_description=prompt["task_description"],
-                    client=client,
-                    model=model,
-                )
+                if use_semantic_index:
+                    import sys
+                    sys.path.append("AI-Researcher/ai_researcher/src")
+                    from lit_review import collect_papers
+                    from lit_review_tools import format_papers_for_printing
+                    paper_bank, total_cost, all_queries = collect_papers(
+                        topic_description=prompt["task_description"],
+                        openai_client=client,
+                        model=model,
+                        seed=2025
+                    )
+                elif use_nova_index:
+                    import sys
+                    sys.path.append("AI-Researcher/ai_researcher/src")
+                    from lit_review_tools import format_papers_for_printing
+                    from search_paper_from_nova_index import search_papers
+                    paper_bank = search_papers(
+                        query=prompt["task_description"],
+                        topk=lit_review_size,
+                    )
+                    total_cost = 0.0
+                    all_queries = []
+                else:
+                    raise ValueError("use_literature must be True if use_semantic_paper_search or use_nova_index is True")
                 print(f"literature view done! paper_bank size:{len(paper_bank)}, total cost: {total_cost}, all queries: {all_queries}")
                 lit_review_results = format_papers_for_printing(paper_bank[:lit_review_size])
+                print(f"===================\n\nlit_review_results:\n{lit_review_results}\n\n===================\n\n")
                 text, msg_history = get_response_from_llm(
                     idea_first_with_lit_review_and_convert_to_proposal_prompt.format(
                         task_description=prompt["task_description"],
@@ -235,6 +254,7 @@ def generate_ideas(
                         print(f"Idea generation converged after {j + 2} iterations.")
                         break
 
+            json_output['lit_review_results'] = lit_review_results
             idea_str_archive.append(json.dumps(json_output))
             new_idea_str_archive.append(json.dumps(json_output))
         except Exception as e:
@@ -246,16 +266,17 @@ def generate_ideas(
     for idea_str in idea_str_archive:
         ideas.append(json.loads(idea_str))
 
-    with open(osp.join(base_dir, "ideas.json"), "w") as f:
-        json.dump(ideas, f, indent=4)
+    # with open(osp.join(base_dir, "ideas.json"), "w") as f:
+        # json.dump(ideas, f, indent=4)
 
     new_ideas = []
     for idea_str in new_idea_str_archive:
         new_ideas.append(json.loads(idea_str))
-    with open(osp.join(base_dir, "new_ideas.json"), "w") as f:
-        json.dump(new_ideas, f, indent=4)
+    # with open(osp.join(base_dir, "new_ideas.json"), "w") as f:
+        # json.dump(new_ideas, f, indent=4)
 
-    return ideas
+    # return ideas
+    return new_ideas
 
 
 # GENERATE IDEAS OPEN-ENDED
@@ -369,6 +390,10 @@ def on_backoff(details):
 def search_for_papers(query, result_limit=10, engine="semanticscholar") -> Union[None, List[Dict]]:
     if not query:
         return None
+    if engine == 'nova':
+        from search_paper_from_nova_index import search_papers
+        papers = search_papers(query, topk=result_limit)
+        return papers
     if engine == "semanticscholar":
         rsp = requests.get(
             "https://api.semanticscholar.org/graph/v1/paper/search",
@@ -492,7 +517,7 @@ def check_idea_novelty(
         client,
         model,
         max_num_iterations=10,
-        engine="semanticscholar",
+        engine="nova", # nova, semanticscholar, openalex
 ):
     with open(osp.join(base_dir, "experiment.py"), "r") as f:
         code = f.read()
@@ -569,9 +594,9 @@ def check_idea_novelty(
         idea["novel"] = novel
 
     # Save results to JSON file
-    results_file = osp.join(base_dir, "ideas.json")
-    with open(results_file, "w") as f:
-        json.dump(ideas, f, indent=4)
+    # results_file = osp.join(base_dir, "ideas.json")
+    # with open(results_file, "w") as f:
+        # json.dump(ideas, f, indent=4)
 
     return ideas
 

@@ -89,6 +89,17 @@ def parse_arguments():
         choices=["semanticscholar", "openalex"],
         help="Scholar engine to use.",
     )
+    parser.add_argument(
+        "--use-literature",
+        action="store_true",
+        help="Use literature review.",
+    )
+    parser.add_argument(
+        "--lit-review-size",
+        type=int,
+        default=5,
+        help="Number of results to use for literature review.",
+    )
     return parser.parse_args()
 
 
@@ -112,13 +123,13 @@ def check_latex_dependencies():
     for dep in required_dependencies:
         if shutil.which(dep) is None:
             missing_deps.append(dep)
-    
+
     if missing_deps:
         print("Error: Required LaTeX dependencies not found:", file=sys.stderr)
         return False
-    
+
     return True
-    
+
 def worker(
         queue,
         base_dir,
@@ -161,6 +172,7 @@ def do_idea(
         writeup,
         improvement,
         log_file=False,
+        write_paper=False,
 ):
     ## CREATE PROJECT FOLDER
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -198,14 +210,17 @@ def do_idea(
         io = InputOutput(
             yes=True, chat_history_file=f"{folder_name}/{idea_name}_aider.txt"
         )
-        if model == "deepseek-coder-v2-0724":
-            main_model = Model("deepseek/deepseek-coder")
-        elif model == "deepseek-reasoner":
-            main_model = Model("deepseek/deepseek-reasoner")
-        elif model == "llama3.1-405b":
-            main_model = Model("openrouter/meta-llama/llama-3.1-405b-instruct")
-        else:
-            main_model = Model(model)
+        main_model = Model('deepseek/deepseek-chat')
+        # if model == 'deepseek-chat':
+            # main_model = Model('deepseek/deepseek-chat')
+        # if model == "deepseek-coder-v2-0724":
+        #     main_model = Model("deepseek/deepseek-coder")
+        # elif model == "deepseek-reasoner":
+        #     main_model = Model("deepseek/deepseek-reasoner")
+        # elif model == "llama3.1-405b":
+        #     main_model = Model("openrouter/meta-llama/llama-3.1-405b-instruct")
+        # else:
+        #     main_model = Model(model)
         coder = Coder.create(
             main_model=main_model,
             fnames=fnames,
@@ -229,84 +244,86 @@ def do_idea(
             return False
 
         print_time()
-        print(f"*Starting Writeup*")
-        ## PERFORM WRITEUP
-        if writeup == "latex":
-            writeup_file = osp.join(folder_name, "latex", "template.tex")
-            fnames = [exp_file, writeup_file, notes]
-            if model == "deepseek-coder-v2-0724":
-                main_model = Model("deepseek/deepseek-coder")
-            elif model == "deepseek-reasoner":
-                main_model = Model("deepseek/deepseek-reasoner")
-            elif model == "llama3.1-405b":
-                main_model = Model("openrouter/meta-llama/llama-3.1-405b-instruct")
+        if write_paper:
+            print(f"*Starting Writeup*")
+            ## PERFORM WRITEUP
+            if writeup == "latex":
+                writeup_file = osp.join(folder_name, "latex", "template.tex")
+                fnames = [exp_file, writeup_file, notes]
+                main_model = Model('deepseek/deepseek-chat')
+                # if model == "deepseek-coder-v2-0724":
+                #     main_model = Model("deepseek/deepseek-coder")
+                # elif model == "deepseek-reasoner":
+                #     main_model = Model("deepseek/deepseek-reasoner")
+                # elif model == "llama3.1-405b":
+                #     main_model = Model("openrouter/meta-llama/llama-3.1-405b-instruct")
+                # else:
+                #     main_model = Model(model)
+                coder = Coder.create(
+                    main_model=main_model,
+                    fnames=fnames,
+                    io=io,
+                    stream=False,
+                    use_git=False,
+                    edit_format="diff",
+                )
+                try:
+                    perform_writeup(idea, folder_name, coder, client, client_model, engine=args.engine)
+                except Exception as e:
+                    print(f"Failed to perform writeup: {e}")
+                    return False
+                print("Done writeup")
             else:
-                main_model = Model(model)
-            coder = Coder.create(
-                main_model=main_model,
-                fnames=fnames,
-                io=io,
-                stream=False,
-                use_git=False,
-                edit_format="diff",
-            )
-            try:
-                perform_writeup(idea, folder_name, coder, client, client_model, engine=args.engine)
-            except Exception as e:
-                print(f"Failed to perform writeup: {e}")
-                return False
-            print("Done writeup")
-        else:
-            raise ValueError(f"Writeup format {writeup} not supported.")
+                raise ValueError(f"Writeup format {writeup} not supported.")
 
-        print_time()
-        print(f"*Starting Review*")
-        ## REVIEW PAPER
-        if writeup == "latex":
-            try:
-                paper_text = load_paper(f"{folder_name}/{idea['Name']}.pdf")
-                review = perform_review(
-                    paper_text,
-                    model="gpt-4o-2024-05-13",
-                    client=openai.OpenAI(),
-                    num_reflections=5,
-                    num_fs_examples=1,
-                    num_reviews_ensemble=5,
-                    temperature=0.1,
-                )
-                # Store the review in separate review.txt file
-                with open(osp.join(folder_name, "review.txt"), "w") as f:
-                    f.write(json.dumps(review, indent=4))
-            except Exception as e:
-                print(f"Failed to perform review: {e}")
-                return False
-
-        ## IMPROVE WRITEUP
-        if writeup == "latex" and improvement:
             print_time()
-            print(f"*Starting Improvement*")
-            try:
-                perform_improvement(review, coder)
-                generate_latex(
-                    coder, folder_name, f"{folder_name}/{idea['Name']}_improved.pdf"
-                )
-                paper_text = load_paper(f"{folder_name}/{idea['Name']}_improved.pdf")
-                review = perform_review(
-                    paper_text,
-                    model="gpt-4o-2024-05-13",
-                    client=openai.OpenAI(),
-                    num_reflections=5,
-                    num_fs_examples=1,
-                    num_reviews_ensemble=5,
-                    temperature=0.1,
-                )
-                # Store the review in separate review.txt file
-                with open(osp.join(folder_name, "review_improved.txt"), "w") as f:
-                    f.write(json.dumps(review))
-            except Exception as e:
-                print(f"Failed to perform improvement: {e}")
-                return False
-        return True
+            print(f"*Starting Review*")
+            ## REVIEW PAPER
+            if writeup == "latex":
+                try:
+                    paper_text = load_paper(f"{folder_name}/{idea['Name']}.pdf")
+                    review = perform_review(
+                        paper_text,
+                        model="gpt-4o-2024-05-13",
+                        client=openai.OpenAI(),
+                        num_reflections=5,
+                        num_fs_examples=1,
+                        num_reviews_ensemble=5,
+                        temperature=0.1,
+                    )
+                    # Store the review in separate review.txt file
+                    with open(osp.join(folder_name, "review.txt"), "w") as f:
+                        f.write(json.dumps(review, indent=4))
+                except Exception as e:
+                    print(f"Failed to perform review: {e}")
+                    return False
+
+            ## IMPROVE WRITEUP
+            if writeup == "latex" and improvement:
+                print_time()
+                print(f"*Starting Improvement*")
+                try:
+                    perform_improvement(review, coder)
+                    generate_latex(
+                        coder, folder_name, f"{folder_name}/{idea['Name']}_improved.pdf"
+                    )
+                    paper_text = load_paper(f"{folder_name}/{idea['Name']}_improved.pdf")
+                    review = perform_review(
+                        paper_text,
+                        model="gpt-4o-2024-05-13",
+                        client=openai.OpenAI(),
+                        num_reflections=5,
+                        num_fs_examples=1,
+                        num_reviews_ensemble=5,
+                        temperature=0.1,
+                    )
+                    # Store the review in separate review.txt file
+                    with open(osp.join(folder_name, "review_improved.txt"), "w") as f:
+                        f.write(json.dumps(review))
+                except Exception as e:
+                    print(f"Failed to perform improvement: {e}")
+                    return False
+            return True
     except Exception as e:
         print(f"Failed to evaluate idea {idea_name}: {str(e)}")
         return False
@@ -340,6 +357,9 @@ if __name__ == "__main__":
 
     base_dir = osp.join("templates", args.experiment)
     results_dir = osp.join("results", args.experiment)
+
+    print("args.use_literature:", args.use_literature)
+    print("args.lit_review_size:", args.lit_review_size)
     ideas = generate_ideas(
         base_dir,
         client=client,
@@ -347,6 +367,8 @@ if __name__ == "__main__":
         skip_generation=args.skip_idea_generation,
         max_num_generations=args.num_ideas,
         num_reflections=NUM_REFLECTIONS,
+        use_literature=args.use_literature,
+        lit_review_size=args.lit_review_size,
     )
     if not args.skip_novelty_check:
         ideas = check_idea_novelty(
@@ -357,7 +379,7 @@ if __name__ == "__main__":
             engine=args.engine,
         )
 
-    with open(osp.join(base_dir, "ideas.json"), "w") as f:
+    with open(osp.join(base_dir, "new_ideas.json"), "w") as f:
         json.dump(ideas, f, indent=4)
 
     novel_ideas = [idea for idea in ideas if idea["novel"]]

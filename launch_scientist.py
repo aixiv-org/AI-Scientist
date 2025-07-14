@@ -44,6 +44,11 @@ def parse_arguments():
         action="store_true",
         help="Skip novelty check and use existing ideas",
     )
+    parser.add_argument(
+        "--skip-write-paper",
+        action="store_true",
+        help="Skip writeup generation",
+    )
     # add type of experiment (nanoGPT, Boston, etc.)
     parser.add_argument(
         "--experiment",
@@ -162,6 +167,8 @@ def worker(
             client_model,
             writeup,
             improvement,
+            write_paper=True,  # Default to True for worker processes
+            engine="semanticscholar",
             log_file=True,
         )
         print(f"Completed idea: {idea['Name']}, Success: {success}")
@@ -177,9 +184,10 @@ def do_idea(
         client_model,
         writeup,
         improvement,
+        write_paper=True,  # Default to True
+        engine="semanticscholar",  # Add engine parameter with default
         log_file=False,
-        write_paper=False,
-):
+        ):
     ## CREATE PROJECT FOLDER
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     idea_name = f"{timestamp}_{idea['Name']}"
@@ -274,7 +282,7 @@ def do_idea(
                     edit_format="diff",
                 )
                 try:
-                    perform_writeup(idea, folder_name, coder, client, client_model, engine=args.engine)
+                    perform_writeup(idea, folder_name, coder, client, client_model, engine=engine)
                 except Exception as e:
                     print(f"Failed to perform writeup: {e}")
                     return False
@@ -440,6 +448,8 @@ if __name__ == "__main__":
                         client_model,
                         args.writeup,
                         args.improvement,
+                        not args.skip_write_paper,  # write_paper should be True when skip_write_paper is False
+                        engine=args.engine,
                     )
                     print(f"Completed idea: {idea['Name']}, Success: {success}")
                 except Exception as e:

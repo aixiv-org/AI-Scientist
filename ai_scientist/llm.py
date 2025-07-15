@@ -14,6 +14,7 @@ AVAILABLE_LLMS = [
     # Anthropic models
     "claude-3-5-sonnet-20240620",
     "claude-3-5-sonnet-20241022",
+    "claude-sonnet-4-20250514",
     # OpenAI models
     "gpt-4o-mini",
     "gpt-4o-mini-2024-07-18",
@@ -321,7 +322,10 @@ def extract_json_between_markers(llm_output):
 def create_client(model):
     if model.startswith("claude-"):
         print(f"Using Anthropic API with model {model}.")
-        return anthropic.Anthropic(), model
+        api_key = os.environ.get("ANTHROPIC_API_KEY")
+        if not api_key:
+            raise ValueError("ANTHROPIC_API_KEY environment variable is not set")
+        return anthropic.Anthropic(api_key=api_key), model
     elif model.startswith("bedrock") and "claude" in model:
         client_model = model.split("/")[-1]
         print(f"Using Amazon Bedrock with model {client_model}.")

@@ -136,9 +136,9 @@ def generate_ideas(
     if skip_generation:
         # Load existing ideas from file
         try:
-            with open(osp.join(base_dir, "ideas.json"), "r") as f:
+            with open(osp.join(base_dir, "new_ideas.json"), "r") as f:
                 ideas = json.load(f)
-            print("Loaded existing ideas:")
+            print("Loaded existing ideas from new_ideas.json")
             for idea in ideas:
                 print(idea)
             return ideas

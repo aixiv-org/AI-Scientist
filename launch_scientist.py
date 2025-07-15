@@ -44,6 +44,13 @@ def parse_arguments():
         action="store_true",
         help="Skip novelty check and use existing ideas",
     )
+
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Skip novelty check and use existing ideas",
+    )
+
     # add type of experiment (nanoGPT, Boston, etc.)
     parser.add_argument(
         "--experiment",
@@ -180,6 +187,7 @@ def do_idea(
         log_file=False,
         write_paper=False,
 ):
+    print("do_idea | idea info:", idea)
     ## CREATE PROJECT FOLDER
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     idea_name = f"{timestamp}_{idea['Name']}"
@@ -390,6 +398,11 @@ if __name__ == "__main__":
 
     novel_ideas = [idea for idea in ideas if idea["novel"]]
     # novel_ideas = list(reversed(novel_ideas))
+
+    if args.debug:
+        novel_ideas = novel_ideas[:1]
+
+    print(f"Running {len(novel_ideas)} novel ideas")
 
     if not args.skip_run_experiment:
         if args.parallel > 0:

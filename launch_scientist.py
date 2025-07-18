@@ -18,6 +18,7 @@ from ai_scientist.llm import create_client, AVAILABLE_LLMS
 from ai_scientist.perform_experiments import perform_experiments
 from ai_scientist.perform_review import perform_review, load_paper, perform_improvement
 from ai_scientist.perform_writeup import perform_writeup, generate_latex
+from utils_tool import save_json_data_to_file, load_json_from_file
 
 NUM_REFLECTIONS = 3
 
@@ -40,6 +41,12 @@ def parse_arguments():
         help="Skip idea generation and load existing ideas",
     )
     parser.add_argument(
+        "--exist-idea-file",
+        type=str,
+        help="Skip idea generation and use this exist ideas for experiment.",
+    )
+
+    parser.add_argument(
         "--skip-novelty-check",
         action="store_true",
         help="Skip novelty check and use existing ideas",
@@ -55,7 +62,17 @@ def parse_arguments():
         action="store_true",
         help="debug only run 1 idea",
     )
-
+    parser.add_argument(
+        "--topk_for_experiment",
+        type=int,
+        default=3,
+        help="Number of parallel processes to run. 0 for sequential execution.",
+    )
+    parser.add_argument(
+        "--target-exp-idea-file",
+        type=str,
+        help="target idea file for Experiment.",
+    )
     # add type of experiment (nanoGPT, Boston, etc.)
     parser.add_argument(
         "--experiment",
@@ -203,6 +220,11 @@ def do_idea(
     assert not osp.exists(folder_name), f"Folder {folder_name} already exists."
     destination_dir = folder_name
     shutil.copytree(base_dir, destination_dir, dirs_exist_ok=True)
+    # save current idea at destination_dir
+    save_json_data_to_file(
+        idea,
+        osp.join(destination_dir, "current_idea.json"),
+    )
     with open(osp.join(base_dir, "run_0", "final_info.json"), "r") as f:
         baseline_results = json.load(f)
     # Check if baseline_results is a dictionary before extracting means
@@ -271,6 +293,8 @@ def do_idea(
             ## PERFORM WRITEUP
             if writeup == "latex":
                 writeup_file = osp.join(folder_name, "latex", "template.tex")
+                # exp_file: experiments.py
+                # notes:记录的实验结果，以及plot的结果
                 fnames = [exp_file, writeup_file, notes]
                 main_model = Model('deepseek/deepseek-chat')
                 # if model == "deepseek-coder-v2-0724":
@@ -382,16 +406,21 @@ if __name__ == "__main__":
 
     print("args.use_literature:", args.use_literature)
     print("args.lit_review_size:", args.lit_review_size)
-    ideas = generate_ideas(
-        base_dir,
-        client=client,
-        model=client_model,
-        skip_generation=args.skip_idea_generation,
-        max_num_generations=args.num_ideas,
-        num_reflections=NUM_REFLECTIONS,
-        use_literature=args.use_literature,
-        lit_review_size=args.lit_review_size,
-    )
+    if args.target_exp_idea_file:
+        ideas = load_json_from_file(args.target_exp_idea_file)
+        print(f"target_exp_idea_file load {len(ideas)} ideas")
+    else:
+        ideas = generate_ideas(
+            base_dir,
+            client=client,
+            model=client_model,
+            skip_generation=args.skip_idea_generation,
+            exist_idea_file=args.exist_idea_file,
+            max_num_generations=args.num_ideas,
+            num_reflections=NUM_REFLECTIONS,
+            use_literature=args.use_literature,
+            lit_review_size=args.lit_review_size,
+        )
     if not args.skip_novelty_check:
         ideas = check_idea_novelty(
             ideas,
@@ -401,14 +430,17 @@ if __name__ == "__main__":
             engine=args.engine,
         )
 
-    with open(osp.join(base_dir, "new_ideas.json"), "w") as f:
-        json.dump(ideas, f, indent=4)
-
     novel_ideas = [idea for idea in ideas if idea["novel"]]
     # novel_ideas = list(reversed(novel_ideas))
 
     if args.debug:
         novel_ideas = novel_ideas[:1]
+
+    print(f"Running {len(novel_ideas)} novel ideas")
+    # rank and select topk idea according to Interestingness and Feasibility(th>=0.8) score
+    novel_ideas =[_ for _ in novel_ideas if _["Feasibility"] >= 0.8]
+    novel_ideas.sort(key=lambda x: x["Interestingness"] + x["Feasibility"], reverse=True)
+    novel_ideas = novel_ideas[:args.topk_for_experiment]
 
     print(f"Running {len(novel_ideas)} novel ideas")
 

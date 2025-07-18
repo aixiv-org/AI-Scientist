@@ -8,6 +8,7 @@ import backoff
 import requests
 
 from ai_scientist.llm import get_response_from_llm, extract_json_between_markers, create_client, AVAILABLE_LLMS
+from utils_tool import load_json_from_file, save_json_data_to_file
 
 S2_API_KEY = os.getenv("S2_API_KEY")
 
@@ -126,6 +127,7 @@ def generate_ideas(
         client,
         model,
         skip_generation=False,
+        exist_idea_file=None,
         max_num_generations=20,
         num_reflections=5,
         use_literature=True,
@@ -133,19 +135,24 @@ def generate_ideas(
         use_semantic_index=False,
         use_nova_index=True
 ):
+    print(f"skip_generation: {skip_generation}, exist_idea_file:{exist_idea_file}")
     if skip_generation:
         # Load existing ideas from file
-        try:
+        if 1:
+            if exist_idea_file:
+                ideas = load_json_from_file(exist_idea_file)
+                print(f"Loaded existing ideas from {exist_idea_file}")
+                return ideas
             with open(osp.join(base_dir, "new_ideas.json"), "r") as f:
                 ideas = json.load(f)
             print("Loaded existing ideas from new_ideas.json")
-            for idea in ideas:
-                print(idea)
             return ideas
-        except FileNotFoundError:
-            print("No existing ideas found. Generating new ideas.")
-        except json.JSONDecodeError:
-            print("Error decoding existing ideas. Generating new ideas.")
+        else:
+            print(1)
+        # except FileNotFoundError:
+            # print("No existing ideas found. Generating new ideas.")
+        # except json.JSONDecodeError:
+            # print("Error decoding existing ideas. Generating new ideas.")
 
     idea_str_archive = []
     new_idea_str_archive = []
@@ -211,7 +218,7 @@ def generate_ideas(
                     raise ValueError("use_literature must be True if use_semantic_paper_search or use_nova_index is True")
                 print(f"literature view done! paper_bank size:{len(paper_bank)}, total cost: {total_cost}, all queries: {all_queries}")
                 lit_review_results = format_papers_for_printing(paper_bank[:lit_review_size])
-                print(f"===================\n\nlit_review_results:\n{lit_review_results}\n\n===================\n\n")
+                # print(f"===================\n\nlit_review_results:\n{lit_review_results}\n\n===================\n\n")
                 text, msg_history = get_response_from_llm(
                     idea_first_with_lit_review_and_convert_to_proposal_prompt.format(
                         task_description=prompt["task_description"],

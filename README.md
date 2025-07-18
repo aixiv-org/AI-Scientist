@@ -239,7 +239,19 @@ This section provides instructions for setting up each of the three templates us
 ```bash
 conda activate ai_scientist
 # Run the paper generation.
+python launch_scientist.py --model "deepseek/deepseek-chat" --experiment nanoGPT --num-ideas 50 --use-literature --skip-idea-generation --exist-idea-file templates/nanoGPT/final_dedup_proposals.json --skip-novelty-check
+python launch_scientist.py --model "deepseek/deepseek-chat" --experiment grokking --num-ideas 50 --use-literature --skip-idea-generation --exist-idea-file templates/grokking/final_dedup_proposals.json --skip-novelty-check
+python launch_scientist.py --model "deepseek/deepseek-chat" --experiment 2d_diffusion --num-ideas 50 --use-literature --skip-idea-generation --exist-idea-file templates/2d_diffusion/final_dedup_proposals.json --skip-novelty-check
+
+
+
+
 python launch_scientist.py --model "deepseek/deepseek-chat" --experiment nanoGPT --num-ideas 50 --use-literature --skip-run-experiment
+
+python launch_scientist.py --model "deepseek/deepseek-chat" --experiment nanoGPT --num-ideas 50 --use-literature --skip-idea-generation --target-exp-idea-file templates/nanoGPT/exp_idea_0.json --skip-novelty-check
+
+
+python launch_scientist.py --model "deepseek/deepseek-chat" --experiment nanoGPT --num-ideas 50 --use-literature --skip-idea-generation --exist-idea-file templates/nanoGPT/final_dedup_proposals.json --skip-novelty-check
 
 python launch_scientist.py --model "deepseek/deepseek-chat" --experiment nanoGPT --num-ideas 50 --use-literature --skip-idea-generation --skip-novelty-check --debug
 

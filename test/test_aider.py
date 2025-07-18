@@ -11,8 +11,10 @@ io = InputOutput(
     yes=True, chat_history_file=f"test/test_aider.txt"
 )
 
-# model = Model("azure/gpt-4o")
+# model = Model("OpenAI/gpt-4o")
+# model = Model("deepseek/deepseek-chat")
 model = Model("deepseek/deepseek-chat")
+# model = Model("openai/gpt-4o")
 
 # Create a coder object
 coder = Coder.create(

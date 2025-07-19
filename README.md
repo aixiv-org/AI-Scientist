@@ -232,6 +232,13 @@ This section provides instructions for setting up each of the three templates us
    python plot.py
    ```
 
+## Experiment2
+```
+python launch_scientist_exp2.py --model "deepseek/deepseek-chat" --experiment nanoGPT --num-ideas 10 --use-literature --run-idea-dedup
+
+```
+
+
 ## Run AI Scientist Paper Generation Experiments
 
 **Note:** Please ensure the setup steps above are completed before running these experiments.

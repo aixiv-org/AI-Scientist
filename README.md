@@ -235,7 +235,8 @@ This section provides instructions for setting up each of the three templates us
 ## Experiment2
 ```
 python launch_scientist_exp2.py --model "deepseek/deepseek-chat" --experiment nanoGPT --num-ideas 10 --use-literature --run-idea-dedup
-
+python launch_scientist_exp2.py --model "deepseek/deepseek-chat" --experiment nanoGPT --num-ideas 10 --use-literature --run-idea-dedup
+python launch_scientist_exp2.py --model "deepseek/deepseek-chat" --experiment 2d_diffusion --num-ideas 10 --use-literature --run-idea-dedup
 ```
 
 

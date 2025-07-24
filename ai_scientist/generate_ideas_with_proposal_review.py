@@ -162,12 +162,12 @@ You will have {num_reflections} rounds to iterate on the idea, but do not need t
 """
 
 
+# 2. Expand the following fields of the new proposal in detail: \"Problem Statement\", \"Motivation\", \"Proposed Method\", \"Experiment\". Each should be at least 5-7 sentences, with technical depth and clarity, accouding to the original old proposal, old proposal review results.
 idea_first_with_lit_review_also_with_proposal_review_and_convert_to_proposal_prompt = """\n
 # Role
 You are an academic expert for top-tier AI/ML conferences. Given the original proposal, its review results please:
 1. Generate a new proposal based on the original proposal and its review results.
-2. Expand the following fields of the new proposal in detail: \"Problem Statement\", \"Motivation\", \"Proposed Method\", \"Experiment\". Each should be at least 5-7 sentences, with technical depth and clarity, accouding to the original old proposal, old proposal review results.
-3. Add a new field \"response letter\" to the proposal, which should respond point-by-point to the comments and suggestions in old_proposal_review_results, explaining how the new proposal addresses them, and reference the original proposal if needed.
+2. Add a new field \"response letter\" to the proposal, which should respond point-by-point to the comments and suggestions in old_proposal_review_results, explaining how the new proposal addresses them, and reference the original proposal if needed.
 
 Here is the original old proposal:
 {proposal}

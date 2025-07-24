@@ -162,36 +162,33 @@ You will have {num_reflections} rounds to iterate on the idea, but do not need t
 """
 
 
-idea_first_with_lit_review_also_with_proposal_review_and_convert_to_proposal_prompt = """{task_description}
-<experiment.py>
-{code}
-</experiment.py>
+# 2. Expand the following fields of the new proposal in detail: \"Problem Statement\", \"Motivation\", \"Proposed Method\", \"Experiment\". Each should be at least 5-7 sentences, with technical depth and clarity, accouding to the original old proposal, old proposal review results.
+idea_first_with_lit_review_also_with_proposal_review_and_convert_to_proposal_prompt = """\n
+# Role
+You are an academic expert for top-tier AI/ML conferences. Given the original proposal, its review results please:
+1. Generate a new proposal based on the original proposal and its review results.
+2. Add a new field \"response letter\" to the proposal, which should respond point-by-point to the comments and suggestions in old_proposal_review_results, explaining how the new proposal addresses them, and reference the original proposal if needed.
 
-Here are the old research proposal and it's review results(please learn from review result and generate new idea):
-
-proposal:
+Here is the original old proposal:
 {proposal}
 
-proposal review result:
+Here is the old proposal review results:
 '''
 {proposal_review_results}
 '''
 
-Here are the ideas that you have already generated:
-'''
-{prev_ideas_string}
-'''
-
 Here are the lit review results related to {task_description}(NOT TO COPY THE IDEA FROM LIT REVIEW):
 
+<experiment.py>
+{code}
+</experiment.py>
+
+lit review results:
 '''
 {lit_review_results}
 '''
 
-Come up with the next impactful and creative idea for research experiments and directions you can feasibly investigate with the code provided.
-Note that you will not have access to any additional resources or datasets.
-Make sure any idea is not overfit the specific training dataset or model, and has wider significance.
-Please learn from the proposal review results and generate new idea to improve the proposal.
+Please learn from the proposal review results and generate a new proposal.
 
 Respond in the following format:
 
@@ -212,6 +209,7 @@ In <JSON>, provide the new idea in JSON format with the following fields:
 - "Motivation": A clear and concise description of the motivation behind the problem.
 - "Proposed Method": A clear and concise description of the proposed method to solve the problem.
 - "Experiment": An outline of the implementation. E.g. which functions need to be added or modified, how results will be obtained, ...
+- "Response Letter": A clear and concise description of the response letter to the review results.
 - "Interestingness": A rating from 1 to 10 (lowest to highest).
 - "Feasibility": A rating from 1 to 10 (lowest to highest).
 - "Novelty": A rating from 1 to 10 (lowest to highest).
@@ -359,7 +357,7 @@ def generate_ideas(
                         code=code,
                         proposal=json.dumps(proposal, ensure_ascii=False) if isinstance(proposal, dict) else proposal,
                         proposal_review_results=json.dumps(review_summary, ensure_ascii=False) if isinstance(review_summary, dict) else review_summary,
-                        prev_ideas_string=prev_ideas_string,
+                        # prev_ideas_string=prev_ideas_string,
                         lit_review_results=lit_review_results,
                     )
                 text, msg_history = get_response_from_llm(
@@ -392,7 +390,8 @@ def generate_ideas(
         except Exception as e:
             print(f"Failed to generate idea: {e}")
             continue
-        # break
+        # if kk > 3:
+            # break
 
     ## SAVE IDEAS
     ideas = []
@@ -405,7 +404,7 @@ def generate_ideas(
     new_ideas = []
     for idea_str in new_idea_str_archive:
         new_ideas.append(json.loads(idea_str))
-    with open(osp.join(base_dir, f"{args.experiment}_exp1_result_{args.review_by}_proposal_pair.json"), "w") as f:
+    with open(osp.join(base_dir, f"{args.experiment}_exp1_result_{args.review_by}_proposal_pair_v2.json"), "w") as f:
         json.dump(new_ideas, f, indent=4)
 
     # return ideas
